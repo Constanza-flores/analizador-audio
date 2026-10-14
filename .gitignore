@@ -1,0 +1,11 @@
+# Binarios compilados
+*.exe
+*.dll
+analizador
+
+# SDL2 descargada (ver README, "Si falta la carpeta deps/")
+deps/
+
+# Archivos que genera el programa
+capturas/
+record.txt
