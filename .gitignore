@@ -1,11 +1,3 @@
-# Binarios compilados
-*.exe
-*.dll
-analizador
-
-# SDL2 descargada (ver README, "Si falta la carpeta deps/")
-deps/
-
-# Archivos que genera el programa
+# Archivos que genera el programa al usarlo
 capturas/
 record.txt
