@@ -1,0 +1,8 @@
+.git
+deps
+*.exe
+*.dll
+analizador
+capturas
+datos
+record.txt

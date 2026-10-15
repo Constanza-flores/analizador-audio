@@ -1,0 +1,13 @@
+# Windows 11 con WSL2 + WSLg. Ejecutar desde una terminal de WSL (Ubuntu):
+#   docker compose -f docker-compose.wsl.yml up --build
+services:
+  analizador:
+    build: .
+    environment:
+      DISPLAY: ":0"
+      SDL_AUDIODRIVER: pulseaudio
+      PULSE_SERVER: unix:/mnt/wslg/PulseServer
+    volumes:
+      - /mnt/wslg:/mnt/wslg
+      - /mnt/wslg/.X11-unix:/tmp/.X11-unix
+      - ./datos:/data

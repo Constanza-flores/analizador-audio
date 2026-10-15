@@ -1,0 +1,18 @@
+# Linux con X11 y PulseAudio (o PipeWire con pulse):
+#   xhost +local:docker
+#   docker compose up --build
+# Dispositivo de captura distinto: docker compose run --rm analizador 2
+services:
+  analizador:
+    build: .
+    environment:
+      DISPLAY: ${DISPLAY}
+      SDL_AUDIODRIVER: pulseaudio
+      PULSE_SERVER: unix:/run/user/1000/pulse/native
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - ./datos:/data
+    devices:
+      - /dev/snd
+    user: "1000:1000"

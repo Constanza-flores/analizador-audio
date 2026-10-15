@@ -160,3 +160,50 @@ Ambos se crean en la carpeta desde la que se ejecuta el programa.
 ## Distribuir solo el ejecutable
 
 En otro Windows de 64 bits basta con copiar `analizador.exe` y `SDL2.dll` en la misma carpeta. Si el equipo de destino no tiene MSYS2, compila con `-static` para no depender de las DLL del compilador.
+
+## Docker
+
+Compila y ejecuta en un contenedor Linux. Necesita un host Linux con X11 y PulseAudio (o PipeWire), porque el programa abre una ventana y captura el micrófono. En macOS Docker no expone el micrófono ni la pantalla al contenedor, así que ahí conviene compilar de forma nativa. Para Windows 11 ver más abajo.
+
+```bash
+xhost +local:docker
+docker compose up --build
+```
+
+`docker-compose.yml` asume que tu usuario tiene UID 1000 (`id -u`); si no, cambia `1000` en `user` y en las rutas de PulseAudio.
+
+Las capturas y `record.txt` quedan en `./datos`. Para elegir otro dispositivo de captura:
+
+```bash
+docker compose run --rm analizador 2
+```
+
+Solo compilar, sin Compose:
+
+```bash
+docker build -t analizador .
+```
+
+### Windows 11
+
+Docker Desktop corre en una máquina virtual, pero WSL2 con WSLg (incluido en Windows 11) comparte pantalla y micrófono con las distribuciones de WSL. El contenedor se lanza desde dentro de WSL.
+
+1. Instala WSL2 con Ubuntu. En PowerShell como administrador:
+
+   ```powershell
+   wsl --install -d Ubuntu
+   ```
+
+   Reinicia si te lo pide y crea tu usuario de Ubuntu.
+2. Instala Docker Desktop desde <https://www.docker.com/products/docker-desktop> con la opción "Use WSL 2 based engine".
+3. En Docker Desktop: Settings → Resources → WSL Integration → activa Ubuntu → Apply.
+4. Abre Ubuntu desde el menú Inicio, clona el proyecto dentro de WSL (mejor en `~`, no en `/mnt/c`) y ejecuta:
+
+   ```bash
+   docker compose -f docker-compose.wsl.yml up --build
+   ```
+
+   La ventana aparece en el escritorio de Windows. Las capturas y `record.txt` quedan en `./datos`.
+5. Si no detecta el micrófono: Configuración de Windows → Privacidad y seguridad → Micrófono → permite el acceso a las aplicaciones de escritorio. Con `docker compose -f docker-compose.wsl.yml run --rm analizador 1` eliges otro dispositivo.
+
+No se ha probado en Windows; si falla, comprueba primero que `echo $DISPLAY` en Ubuntu devuelve `:0` y que existe `/mnt/wslg/PulseServer`.
