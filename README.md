@@ -69,6 +69,47 @@ Copy-Item deps\SDL2-2.32.10\x86_64-w64-mingw32\bin\SDL2.dll .
 .\analizador.exe
 ```
 
+#### Variante: todo desde la terminal MSYS2 UCRT64
+
+No requiere tocar el PATH de Windows ni usar PowerShell.
+
+1. Abre **MSYS2 UCRT64** (el prompt debe decir `UCRT64`, no `MSYS`) y ejecuta:
+
+   ```bash
+   pacman -Syu
+   pacman -S mingw-w64-ucrt-x86_64-gcc
+   g++ --version
+   ```
+
+   Si `pacman -Syu` pide cerrar la terminal, ábrela de nuevo y repítelo hasta que no queden actualizaciones.
+
+2. Ve a la carpeta del proyecto (las unidades de Windows están en `/c/`, `/d/`, etc.):
+
+   ```bash
+   cd /c/ruta/al/proyecto
+   ```
+
+3. Compila. Se enlazan de forma estática solo `libgcc` y `libstdc++`; SDL2 se queda como DLL:
+
+   ```bash
+   g++ -O2 -std=c++17 -static-libgcc -static-libstdc++ analizador_audio.cpp -o analizador.exe \
+     -Ideps/SDL2-2.32.10/x86_64-w64-mingw32/include/SDL2 \
+     -Ldeps/SDL2-2.32.10/x86_64-w64-mingw32/lib \
+     -lmingw32 -lSDL2main -lSDL2
+   ```
+
+4. Comprueba que `SDL2.dll` está junto al `.exe` (`ls SDL2.dll`). Si falta:
+
+   ```bash
+   cp deps/SDL2-2.32.10/x86_64-w64-mingw32/bin/SDL2.dll .
+   ```
+
+5. Activa el permiso de micrófono (Configuración → Privacidad y seguridad → Micrófono → aplicaciones de escritorio) y ejecuta:
+
+   ```bash
+   ./analizador.exe        # o ./analizador.exe N para elegir dispositivo
+   ```
+
 #### Si falta la carpeta `deps/`
 
 1. Descarga `SDL2-devel-2.32.10-mingw.zip` desde <https://github.com/libsdl-org/SDL/releases/tag/release-2.32.10>.
@@ -151,12 +192,60 @@ Ambos se crean en la carpeta desde la que se ejecuta el programa.
 |---|---|
 | `SDL.h: No such file or directory` | En PowerShell, comprueba que las rutas `-I` y `-L` van entre comillas. Si ya lo están, falta SDL2 o la versión de la ruta no coincide con la carpeta de `deps/` |
 | El juego no reacciona a la voz | Acerca el micrófono y sostén un tono limpio (una vocal o un silbido). Detecta notas entre 70 y 2500 Hz |
-| `g++` no se reconoce como comando | El compilador no está en el PATH. Repite el paso 3 de la opción A y reabre la terminal |
+| `g++` no se reconoce como comando | En PowerShell o CMD el compilador no está en el PATH. Repite el paso 3 de la opción A y reabre la terminal, o usa la terminal MSYS2 UCRT64. Solo para la sesión actual: `$env:Path = "C:\msys64\ucrt64\bin;" + $env:Path` |
+| `collect2.exe: error: ld returned 1 exit status` con muchos `undefined reference` | Se compiló con `-static` completo, que enlaza la `libSDL2.a` estática y le faltan librerías de Windows. Usa `-static-libgcc -static-libstdc++` en su lugar |
 | Falta `SDL2.dll` al abrir el programa | Copia `SDL2.dll` a la misma carpeta que `analizador.exe` |
-| Faltan `libstdc++-6.dll`, `libgcc_s_seh-1.dll` o `libwinpthread-1.dll` | Ocurre al llevar el `.exe` a un equipo sin MSYS2. Recompila añadiendo `-static` al final del comando |
+| Faltan `libstdc++-6.dll`, `libgcc_s_seh-1.dll` o `libwinpthread-1.dll` | Ocurre al llevar el `.exe` a un equipo sin MSYS2. Recompila añadiendo `-static-libgcc -static-libstdc++` (no uses `-static` solo) y copia `libwinpthread-1.dll` desde `C:\msys64\ucrt64\bin\` si sigue pidiéndola |
 | `No se pudo abrir el microfono` | En Windows: Configuración → Privacidad y seguridad → Micrófono → permitir el acceso a las aplicaciones de escritorio. En macOS: da permiso de micrófono a la terminal |
 | `pacman` devuelve errores 404 | La base de paquetes de MSYS2 está desactualizada. Ejecuta `pacman -Syu` o usa la opción A |
 
 ## Distribuir solo el ejecutable
 
-En otro Windows de 64 bits basta con copiar `analizador.exe` y `SDL2.dll` en la misma carpeta. Si el equipo de destino no tiene MSYS2, compila con `-static` para no depender de las DLL del compilador.
+En otro Windows de 64 bits basta con copiar `analizador.exe` y `SDL2.dll` en la misma carpeta. Si el equipo de destino no tiene MSYS2, compila con `-static-libgcc -static-libstdc++` para no depender de las DLL del compilador (si aun así pide `libwinpthread-1.dll`, cópiala junto al `.exe`).
+
+## Docker
+
+Compila y ejecuta en un contenedor Linux. Necesita un host Linux con X11 y PulseAudio (o PipeWire), porque el programa abre una ventana y captura el micrófono. En macOS Docker no expone el micrófono ni la pantalla al contenedor, así que ahí conviene compilar de forma nativa. Para Windows 11 ver más abajo.
+
+```bash
+xhost +local:docker
+docker compose up --build
+```
+
+`docker-compose.yml` asume que tu usuario tiene UID 1000 (`id -u`); si no, cambia `1000` en `user` y en las rutas de PulseAudio.
+
+Las capturas y `record.txt` quedan en `./datos`. Para elegir otro dispositivo de captura:
+
+```bash
+docker compose run --rm analizador 2
+```
+
+Solo compilar, sin Compose:
+
+```bash
+docker build -t analizador .
+```
+
+### Windows 11
+
+Docker Desktop corre en una máquina virtual, pero WSL2 con WSLg (incluido en Windows 11) comparte pantalla y micrófono con las distribuciones de WSL. El contenedor se lanza desde dentro de WSL.
+
+1. Instala WSL2 con Ubuntu. En PowerShell como administrador:
+
+   ```powershell
+   wsl --install -d Ubuntu
+   ```
+
+   Reinicia si te lo pide y crea tu usuario de Ubuntu.
+2. Instala Docker Desktop desde <https://www.docker.com/products/docker-desktop> con la opción "Use WSL 2 based engine".
+3. En Docker Desktop: Settings → Resources → WSL Integration → activa Ubuntu → Apply.
+4. Abre Ubuntu desde el menú Inicio, clona el proyecto dentro de WSL (mejor en `~`, no en `/mnt/c`) y ejecuta:
+
+   ```bash
+   docker compose -f docker-compose.wsl.yml up --build
+   ```
+
+   La ventana aparece en el escritorio de Windows. Las capturas y `record.txt` quedan en `./datos`.
+5. Si no detecta el micrófono: Configuración de Windows → Privacidad y seguridad → Micrófono → permite el acceso a las aplicaciones de escritorio. Con `docker compose -f docker-compose.wsl.yml run --rm analizador 1` eliges otro dispositivo.
+
+No se ha probado en Windows; si falla, comprueba primero que `echo $DISPLAY` en Ubuntu devuelve `:0` y que existe `/mnt/wslg/PulseServer`.
